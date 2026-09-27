@@ -5,7 +5,7 @@ class CompletedCut {
   final double price;
   final DateTime completedAt;
 
-  CompletedCut({
+  const CompletedCut({
     this.id,
     required this.customerName,
     required this.haircutName,
@@ -25,11 +25,13 @@ class CompletedCut {
 
   factory CompletedCut.fromMap(Map<String, dynamic> map) {
     return CompletedCut(
-      id: map['id'],
-      customerName: map['customer_name'],
-      haircutName: map['haircut_name'],
+      id: map['id'] as int?,
+      customerName: map['customer_name'] as String,
+      haircutName: map['haircut_name'] as String,
       price: (map['price'] as num).toDouble(),
-      completedAt: DateTime.parse(map['completed_at']),
+      completedAt: DateTime.parse(
+        map['completed_at'] as String,
+      ),
     );
   }
 }

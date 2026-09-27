@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 
+import 'screens/call_outs_screen.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/history_screen.dart';
 import 'screens/queue_screen.dart';
 import 'screens/services_screen.dart';
-import 'screens/history_screen.dart';
+import 'services/notification_service.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await NotificationService.initialize();
+
   runApp(const BostonsApp());
 }
 
@@ -33,12 +38,13 @@ class MainNavigation extends StatefulWidget {
 }
 
 class _MainNavigationState extends State<MainNavigation> {
-  int currentIndex = 0;
+  int _currentIndex = 0;
 
-  final List<Widget> screens = const [
+  final List<Widget> _screens = const [
     DashboardScreen(),
     QueueScreen(),
     ServicesScreen(),
+    CallOutsScreen(),
     HistoryScreen(),
   ];
 
@@ -46,14 +52,14 @@ class _MainNavigationState extends State<MainNavigation> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: IndexedStack(
-        index: currentIndex,
-        children: screens,
+        index: _currentIndex,
+        children: _screens,
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: currentIndex,
+        selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
           setState(() {
-            currentIndex = index;
+            _currentIndex = index;
           });
         },
         destinations: const [
@@ -71,6 +77,11 @@ class _MainNavigationState extends State<MainNavigation> {
             icon: Icon(Icons.content_cut_outlined),
             selectedIcon: Icon(Icons.content_cut),
             label: 'Services',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.directions_car_outlined),
+            selectedIcon: Icon(Icons.directions_car),
+            label: 'Call Outs',
           ),
           NavigationDestination(
             icon: Icon(Icons.history_outlined),

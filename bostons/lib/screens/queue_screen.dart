@@ -13,7 +13,7 @@ class QueueScreen extends StatefulWidget {
 }
 
 class _QueueScreenState extends State<QueueScreen> {
-  final db = DatabaseHelper.instance;
+  final DatabaseHelper db = DatabaseHelper();
 
   List<Customer> customers = [];
   List<Haircut> haircuts = [];
@@ -117,6 +117,7 @@ class _QueueScreenState extends State<QueueScreen> {
                         haircutId: selectedHaircut!.id!,
                         haircutName: selectedHaircut!.name,
                         price: selectedHaircut!.price,
+                        status: 'waiting',
                         createdAt: DateTime.now(),
                       ),
                     );

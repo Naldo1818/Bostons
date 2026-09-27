@@ -12,7 +12,7 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  final db = DatabaseHelper.instance;
+  final DatabaseHelper db = DatabaseHelper();
 
   List<CompletedCut> cuts = [];
 

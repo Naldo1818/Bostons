@@ -1,16 +1,21 @@
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../models/call_out.dart';
+import '../models/completed_cut.dart';
 import '../models/customer.dart';
 import '../models/haircut.dart';
-import '../models/completed_cut.dart';
 
 class DatabaseHelper {
-  static final DatabaseHelper instance = DatabaseHelper._internal();
+  static final DatabaseHelper _instance = DatabaseHelper._internal();
 
-  static Database? _database;
+  factory DatabaseHelper() {
+    return _instance;
+  }
 
   DatabaseHelper._internal();
+
+  static Database? _database;
 
   Future<Database> get database async {
     if (_database != null) {
@@ -24,16 +29,21 @@ class DatabaseHelper {
 
   Future<Database> _initDatabase() async {
     final databasesPath = await getDatabasesPath();
-    final path = join(databasesPath, 'bostons.db');
+
+    final path = join(
+      databasesPath,
+      'bostons.db',
+    );
 
     return await openDatabase(
       path,
-      version: 1,
-      onCreate: _createDatabase,
+      version: 2,
+      onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
   }
 
-  Future<void> _createDatabase(
+  Future<void> _onCreate(
     Database db,
     int version,
   ) async {
@@ -68,46 +78,74 @@ class DatabaseHelper {
       )
     ''');
 
-    await db.insert(
-      'haircuts',
+    await db.execute('''
+      CREATE TABLE call_outs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        customer_name TEXT NOT NULL,
+        address TEXT NOT NULL,
+        call_out_time TEXT NOT NULL,
+        status TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      )
+    ''');
+
+    await _seedHaircuts(db);
+  }
+
+  Future<void> _onUpgrade(
+    Database db,
+    int oldVersion,
+    int newVersion,
+  ) async {
+    if (oldVersion < 2) {
+      await db.execute('''
+        CREATE TABLE call_outs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          customer_name TEXT NOT NULL,
+          address TEXT NOT NULL,
+          call_out_time TEXT NOT NULL,
+          status TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        )
+      ''');
+    }
+  }
+
+  Future<void> _seedHaircuts(Database db) async {
+    final haircuts = [
       {
         'name': 'Buzz Cut',
-        'price': 80,
+        'price': 80.0,
       },
-    );
-
-    await db.insert(
-      'haircuts',
       {
         'name': 'Fade',
-        'price': 100,
+        'price': 100.0,
       },
-    );
-
-    await db.insert(
-      'haircuts',
       {
         'name': 'Skin Fade',
-        'price': 120,
+        'price': 120.0,
       },
-    );
-
-    await db.insert(
-      'haircuts',
       {
         'name': 'Classic Cut',
-        'price': 90,
+        'price': 90.0,
       },
-    );
-
-    await db.insert(
-      'haircuts',
       {
         'name': 'Beard Trim',
-        'price': 50,
+        'price': 50.0,
       },
-    );
+    ];
+
+    for (final haircut in haircuts) {
+      await db.insert(
+        'haircuts',
+        haircut,
+      );
+    }
   }
+
+  // ------------------------------------------------------------
+  // HAIRCUTS
+  // ------------------------------------------------------------
 
   Future<List<Haircut>> getHaircuts() async {
     final db = await database;
@@ -120,7 +158,9 @@ class DatabaseHelper {
     return result.map((map) => Haircut.fromMap(map)).toList();
   }
 
-  Future<int> addHaircut(Haircut haircut) async {
+  Future<int> addHaircut(
+    Haircut haircut,
+  ) async {
     final db = await database;
 
     return await db.insert(
@@ -129,7 +169,9 @@ class DatabaseHelper {
     );
   }
 
-  Future<int> updateHaircut(Haircut haircut) async {
+  Future<int> updateHaircut(
+    Haircut haircut,
+  ) async {
     final db = await database;
 
     return await db.update(
@@ -140,7 +182,9 @@ class DatabaseHelper {
     );
   }
 
-  Future<int> deleteHaircut(int id) async {
+  Future<int> deleteHaircut(
+    int id,
+  ) async {
     final db = await database;
 
     return await db.delete(
@@ -150,7 +194,13 @@ class DatabaseHelper {
     );
   }
 
-  Future<int> addCustomer(Customer customer) async {
+  // ------------------------------------------------------------
+  // CUSTOMERS / QUEUE
+  // ------------------------------------------------------------
+
+  Future<int> addCustomer(
+    Customer customer,
+  ) async {
     final db = await database;
 
     return await db.insert(
@@ -172,21 +222,35 @@ class DatabaseHelper {
     return result.map((map) => Customer.fromMap(map)).toList();
   }
 
-  Future<void> completeCustomer(Customer customer) async {
+  Future<int> removeCustomer(
+    int id,
+  ) async {
     final db = await database;
 
-    await db.transaction((transaction) async {
-      await transaction.insert(
+    return await db.delete(
+      'customers',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> completeCustomer(
+    Customer customer,
+  ) async {
+    final db = await database;
+
+    await db.transaction((txn) async {
+      await txn.insert(
         'completed_cuts',
-        CompletedCut(
-          customerName: customer.name,
-          haircutName: customer.haircutName,
-          price: customer.price,
-          completedAt: DateTime.now(),
-        ).toMap(),
+        {
+          'customer_name': customer.name,
+          'haircut_name': customer.haircutName,
+          'price': customer.price,
+          'completed_at': DateTime.now().toIso8601String(),
+        },
       );
 
-      await transaction.update(
+      await txn.update(
         'customers',
         {
           'status': 'completed',
@@ -197,15 +261,9 @@ class DatabaseHelper {
     });
   }
 
-  Future<void> removeCustomer(int id) async {
-    final db = await database;
-
-    await db.delete(
-      'customers',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
-  }
+  // ------------------------------------------------------------
+  // COMPLETED CUTS
+  // ------------------------------------------------------------
 
   Future<List<CompletedCut>> getCompletedCuts() async {
     final db = await database;
@@ -244,5 +302,72 @@ class DatabaseHelper {
     );
 
     return result.map((map) => CompletedCut.fromMap(map)).toList();
+  }
+
+  // ------------------------------------------------------------
+  // CALL OUTS
+  // ------------------------------------------------------------
+
+  Future<int> addCallOut(
+    CallOut callOut,
+  ) async {
+    final db = await database;
+
+    return await db.insert(
+      'call_outs',
+      callOut.toMap(),
+    );
+  }
+
+  Future<List<CallOut>> getCallOuts() async {
+    final db = await database;
+
+    final result = await db.query(
+      'call_outs',
+      orderBy: 'call_out_time ASC',
+    );
+
+    return result.map((map) => CallOut.fromMap(map)).toList();
+  }
+
+  Future<List<CallOut>> getUpcomingCallOuts() async {
+    final db = await database;
+
+    final result = await db.query(
+      'call_outs',
+      where: 'status = ?',
+      whereArgs: ['upcoming'],
+      orderBy: 'call_out_time ASC',
+    );
+
+    return result.map((map) => CallOut.fromMap(map)).toList();
+  }
+
+  Future<int> updateCallOutStatus(
+    int id,
+    String status,
+  ) async {
+    final db = await database;
+
+    return await db.update(
+      'call_outs',
+      {
+        'status': status,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<int> deleteCallOut(
+    int id,
+  ) async {
+    final db = await database;
+
+    return await db.delete(
+      'call_outs',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 }

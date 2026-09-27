@@ -12,7 +12,7 @@ class ServicesScreen extends StatefulWidget {
 }
 
 class _ServicesScreenState extends State<ServicesScreen> {
-  final db = DatabaseHelper.instance;
+  final db = DatabaseHelper();
 
   List<Haircut> haircuts = [];
 

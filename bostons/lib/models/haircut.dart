@@ -3,7 +3,7 @@ class Haircut {
   final String name;
   final double price;
 
-  Haircut({
+  const Haircut({
     this.id,
     required this.name,
     required this.price,
@@ -19,8 +19,8 @@ class Haircut {
 
   factory Haircut.fromMap(Map<String, dynamic> map) {
     return Haircut(
-      id: map['id'],
-      name: map['name'],
+      id: map['id'] as int?,
+      name: map['name'] as String,
       price: (map['price'] as num).toDouble(),
     );
   }

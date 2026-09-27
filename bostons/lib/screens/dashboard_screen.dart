@@ -13,7 +13,7 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  final db = DatabaseHelper.instance;
+  final db = DatabaseHelper();
 
   int waiting = 0;
   int completed = 0;

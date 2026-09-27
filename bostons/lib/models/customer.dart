@@ -8,7 +8,7 @@ class Customer {
   final DateTime createdAt;
   final String status;
 
-  Customer({
+  const Customer({
     this.id,
     required this.name,
     required this.phone,
@@ -16,7 +16,7 @@ class Customer {
     required this.haircutName,
     required this.price,
     required this.createdAt,
-    this.status = 'waiting',
+    required this.status,
   });
 
   Map<String, dynamic> toMap() {
@@ -34,14 +34,16 @@ class Customer {
 
   factory Customer.fromMap(Map<String, dynamic> map) {
     return Customer(
-      id: map['id'],
-      name: map['name'],
-      phone: map['phone'] ?? '',
-      haircutId: map['haircut_id'],
-      haircutName: map['haircut_name'],
+      id: map['id'] as int?,
+      name: map['name'] as String,
+      phone: map['phone'] as String? ?? '',
+      haircutId: map['haircut_id'] as int,
+      haircutName: map['haircut_name'] as String,
       price: (map['price'] as num).toDouble(),
-      createdAt: DateTime.parse(map['created_at']),
-      status: map['status'] ?? 'waiting',
+      createdAt: DateTime.parse(
+        map['created_at'] as String,
+      ),
+      status: map['status'] as String,
     );
   }
 }
