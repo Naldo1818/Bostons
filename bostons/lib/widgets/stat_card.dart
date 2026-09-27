@@ -22,7 +22,11 @@ class StatCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
+                color: Theme.of(context)
+                    .colorScheme
+                    .primary
+                    // ignore: deprecated_member_use
+                    .withOpacity(0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(

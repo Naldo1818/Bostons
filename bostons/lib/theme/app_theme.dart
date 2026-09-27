@@ -37,6 +37,7 @@ class AppTheme {
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: surface,
+        // ignore: deprecated_member_use
         indicatorColor: primary.withOpacity(0.2),
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
