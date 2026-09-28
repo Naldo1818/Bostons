@@ -35,11 +35,20 @@ class _CallOutsScreenState extends State<CallOutsScreen> {
   }
 
   Future<void> _addCallOut() async {
+    if (!mounted) {
+      return;
+    }
+
     final nameController = TextEditingController();
+
     final addressController = TextEditingController();
-    final dialogContext = context;
+
+    final feeController = TextEditingController(
+      text: '50',
+    );
 
     DateTime selectedDate = DateTime.now();
+
     TimeOfDay selectedTime = TimeOfDay.now();
 
     List<Haircut> services = [];
@@ -47,8 +56,8 @@ class _CallOutsScreenState extends State<CallOutsScreen> {
     try {
       services = await _database.getHaircuts();
     } catch (_) {
-      if (dialogContext.mounted) {
-        ScaffoldMessenger.of(dialogContext).showSnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
               'Could not load services.',
@@ -59,12 +68,14 @@ class _CallOutsScreenState extends State<CallOutsScreen> {
 
       nameController.dispose();
       addressController.dispose();
+      feeController.dispose();
+
       return;
     }
 
     if (services.isEmpty) {
-      if (dialogContext.mounted) {
-        ScaffoldMessenger.of(dialogContext).showSnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
               'Please add a service before creating a call out.',
@@ -75,21 +86,37 @@ class _CallOutsScreenState extends State<CallOutsScreen> {
 
       nameController.dispose();
       addressController.dispose();
+      feeController.dispose();
+
       return;
     }
 
     Haircut? selectedService = services.first;
 
-    if (!mounted || !dialogContext.mounted) return;
+    if (!mounted) {
+      nameController.dispose();
+      addressController.dispose();
+      feeController.dispose();
+      return;
+    }
 
     final result = await showDialog<bool>(
-      context: dialogContext,
+      context: context,
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (
             context,
             setDialogState,
           ) {
+            final servicePrice = selectedService?.price ?? 0;
+
+            final callOutFee = double.tryParse(
+                  feeController.text.trim(),
+                ) ??
+                0;
+
+            final total = servicePrice + callOutFee;
+
             return AlertDialog(
               title: const Text(
                 'Add Call Out',
@@ -108,9 +135,11 @@ class _CallOutsScreenState extends State<CallOutsScreen> {
                         ),
                       ),
                     ),
+
                     const SizedBox(
                       height: 16,
                     ),
+
                     TextField(
                       controller: addressController,
                       maxLines: 3,
@@ -122,11 +151,11 @@ class _CallOutsScreenState extends State<CallOutsScreen> {
                         ),
                       ),
                     ),
+
                     const SizedBox(
                       height: 16,
                     ),
 
-                    // SERVICE DROPDOWN
                     DropdownButtonFormField<Haircut>(
                       initialValue: selectedService,
                       decoration: const InputDecoration(
@@ -136,7 +165,9 @@ class _CallOutsScreenState extends State<CallOutsScreen> {
                         ),
                       ),
                       items: services.map(
-                        (service) {
+                        (
+                          service,
+                        ) {
                           return DropdownMenuItem<Haircut>(
                             value: service,
                             child: Text(
@@ -146,16 +177,112 @@ class _CallOutsScreenState extends State<CallOutsScreen> {
                         },
                       ).toList(),
                       onChanged: (service) {
-                        if (service == null) return;
+                        if (service == null) {
+                          return;
+                        }
 
-                        setDialogState(() {
-                          selectedService = service;
-                        });
+                        setDialogState(
+                          () {
+                            selectedService = service;
+                          },
+                        );
                       },
                     ),
 
                     const SizedBox(
                       height: 16,
+                    ),
+
+                    // CALL OUT FEE
+                    TextField(
+                      controller: feeController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Call Out Fee',
+                        prefixText: 'R ',
+                        prefixIcon: Icon(
+                          Icons.directions_car,
+                        ),
+                      ),
+                      onChanged: (_) {
+                        setDialogState(
+                          () {},
+                        );
+                      },
+                    ),
+
+                    const SizedBox(
+                      height: 16,
+                    ),
+
+                    // TOTAL
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(
+                          12,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Service',
+                              ),
+                              Text(
+                                'R${servicePrice.toStringAsFixed(2)}',
+                              ),
+                            ],
+                          ),
+                          const SizedBox(
+                            height: 8,
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Call Out',
+                              ),
+                              Text(
+                                'R${callOutFee.toStringAsFixed(2)}',
+                              ),
+                            ],
+                          ),
+                          const Divider(
+                            height: 20,
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Total',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                'R${total.toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(
+                      height: 8,
                     ),
 
                     ListTile(
@@ -186,9 +313,11 @@ class _CallOutsScreenState extends State<CallOutsScreen> {
                         );
 
                         if (date != null) {
-                          setDialogState(() {
-                            selectedDate = date;
-                          });
+                          setDialogState(
+                            () {
+                              selectedDate = date;
+                            },
+                          );
                         }
                       },
                     ),
@@ -213,9 +342,11 @@ class _CallOutsScreenState extends State<CallOutsScreen> {
                         );
 
                         if (time != null) {
-                          setDialogState(() {
-                            selectedTime = time;
-                          });
+                          setDialogState(
+                            () {
+                              selectedTime = time;
+                            },
+                          );
                         }
                       },
                     ),
@@ -262,6 +393,23 @@ class _CallOutsScreenState extends State<CallOutsScreen> {
                       return;
                     }
 
+                    final fee = double.tryParse(
+                      feeController.text.trim(),
+                    );
+
+                    if (fee == null || fee < 0) {
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Enter a valid call-out fee.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
                     if (selectedService == null) {
                       ScaffoldMessenger.of(
                         context,
@@ -294,6 +442,7 @@ class _CallOutsScreenState extends State<CallOutsScreen> {
     if (result != true) {
       nameController.dispose();
       addressController.dispose();
+      feeController.dispose();
       return;
     }
 
@@ -320,12 +469,26 @@ class _CallOutsScreenState extends State<CallOutsScreen> {
 
       nameController.dispose();
       addressController.dispose();
+      feeController.dispose();
+
       return;
     }
 
     if (selectedService == null || selectedService!.id == null) {
       nameController.dispose();
       addressController.dispose();
+      feeController.dispose();
+      return;
+    }
+
+    final callOutFee = double.tryParse(
+      feeController.text.trim(),
+    );
+
+    if (callOutFee == null || callOutFee < 0) {
+      nameController.dispose();
+      addressController.dispose();
+      feeController.dispose();
       return;
     }
 
@@ -335,6 +498,7 @@ class _CallOutsScreenState extends State<CallOutsScreen> {
       serviceId: selectedService!.id!,
       serviceName: selectedService!.name,
       servicePrice: selectedService!.price,
+      callOutFee: callOutFee,
       callOutTime: callOutTime,
       status: 'upcoming',
       createdAt: DateTime.now(),
@@ -353,6 +517,7 @@ class _CallOutsScreenState extends State<CallOutsScreen> {
 
     nameController.dispose();
     addressController.dispose();
+    feeController.dispose();
 
     await _loadCallOuts();
 
@@ -361,7 +526,7 @@ class _CallOutsScreenState extends State<CallOutsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '${callOut.serviceName} call out added. Reminder scheduled for 30 minutes before.',
+          '${callOut.serviceName} call out added. Total: R${callOut.totalPrice.toStringAsFixed(2)}',
         ),
       ),
     );
@@ -374,9 +539,8 @@ class _CallOutsScreenState extends State<CallOutsScreen> {
       return;
     }
 
-    await _database.updateCallOutStatus(
-      callOut.id!,
-      'completed',
+    await _database.completeCallOut(
+      callOut,
     );
 
     await NotificationService.cancelCallOutReminder(
@@ -384,6 +548,16 @@ class _CallOutsScreenState extends State<CallOutsScreen> {
     );
 
     await _loadCallOuts();
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '${callOut.customerName} completed for R${callOut.totalPrice.toStringAsFixed(2)}.',
+        ),
+      ),
+    );
   }
 
   Future<void> _cancelCallOut(
@@ -462,7 +636,9 @@ class _CallOutsScreenState extends State<CallOutsScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -613,17 +789,70 @@ class _CallOutCard extends StatelessWidget {
                 ),
                 Expanded(
                   child: Text(
-                    '${callOut.serviceName} • R${callOut.servicePrice.toStringAsFixed(2)}',
+                    callOut.serviceName,
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
                     ),
+                  ),
+                ),
+                Text(
+                  'R${callOut.servicePrice.toStringAsFixed(2)}',
+                ),
+              ],
+            ),
+
+            const SizedBox(
+              height: 8,
+            ),
+
+            // CALL OUT FEE
+            Row(
+              children: [
+                const Icon(
+                  Icons.directions_car,
+                  size: 20,
+                ),
+                const SizedBox(
+                  width: 8,
+                ),
+                const Expanded(
+                  child: Text(
+                    'Call Out Fee',
+                  ),
+                ),
+                Text(
+                  'R${callOut.callOutFee.toStringAsFixed(2)}',
+                ),
+              ],
+            ),
+
+            const Divider(
+              height: 20,
+            ),
+
+            // TOTAL
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Total',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                Text(
+                  'R${callOut.totalPrice.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
             ),
 
             const SizedBox(
-              height: 10,
+              height: 12,
             ),
 
             // ADDRESS

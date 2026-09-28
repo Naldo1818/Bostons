@@ -37,7 +37,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -79,18 +79,19 @@ class DatabaseHelper {
     ''');
 
     await db.execute('''
-  CREATE TABLE call_outs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    customer_name TEXT NOT NULL,
-    address TEXT NOT NULL,
-    service_id INTEGER NOT NULL,
-    service_name TEXT NOT NULL,
-    service_price REAL NOT NULL,
-    call_out_time TEXT NOT NULL,
-    status TEXT NOT NULL,
-    created_at TEXT NOT NULL
-  )
-''');
+      CREATE TABLE call_outs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        customer_name TEXT NOT NULL,
+        address TEXT NOT NULL,
+        service_id INTEGER NOT NULL,
+        service_name TEXT NOT NULL,
+        service_price REAL NOT NULL,
+        call_out_fee REAL NOT NULL DEFAULT 0,
+        call_out_time TEXT NOT NULL,
+        status TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      )
+    ''');
 
     await _seedHaircuts(db);
   }
@@ -102,22 +103,57 @@ class DatabaseHelper {
   ) async {
     if (oldVersion < 2) {
       await db.execute('''
-    CREATE TABLE call_outs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      customer_name TEXT NOT NULL,
-      address TEXT NOT NULL,
-      service_id INTEGER NOT NULL,
-      service_name TEXT NOT NULL,
-      service_price REAL NOT NULL,
-      call_out_time TEXT NOT NULL,
-      status TEXT NOT NULL,
-      created_at TEXT NOT NULL
-    )
-  ''');
+        CREATE TABLE call_outs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          customer_name TEXT NOT NULL,
+          address TEXT NOT NULL,
+          service_id INTEGER NOT NULL,
+          service_name TEXT NOT NULL,
+          service_price REAL NOT NULL,
+          call_out_fee REAL NOT NULL DEFAULT 0,
+          call_out_time TEXT NOT NULL,
+          status TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        )
+      ''');
+    }
+
+    if (oldVersion < 3) {
+      try {
+        await db.execute('''
+          ALTER TABLE call_outs
+          ADD COLUMN service_id INTEGER NOT NULL DEFAULT 1
+        ''');
+      } catch (_) {}
+
+      try {
+        await db.execute('''
+          ALTER TABLE call_outs
+          ADD COLUMN service_name TEXT NOT NULL DEFAULT 'Unknown Service'
+        ''');
+      } catch (_) {}
+
+      try {
+        await db.execute('''
+          ALTER TABLE call_outs
+          ADD COLUMN service_price REAL NOT NULL DEFAULT 0
+        ''');
+      } catch (_) {}
+    }
+
+    if (oldVersion < 4) {
+      try {
+        await db.execute('''
+          ALTER TABLE call_outs
+          ADD COLUMN call_out_fee REAL NOT NULL DEFAULT 0
+        ''');
+      } catch (_) {}
     }
   }
 
-  Future<void> _seedHaircuts(Database db) async {
+  Future<void> _seedHaircuts(
+    Database db,
+  ) async {
     final haircuts = [
       {
         'name': 'Buzz Cut',
@@ -150,7 +186,7 @@ class DatabaseHelper {
   }
 
   // ------------------------------------------------------------
-  // HAIRCUTS
+  // HAIRCUTS / SERVICES
   // ------------------------------------------------------------
 
   Future<List<Haircut>> getHaircuts() async {
@@ -161,7 +197,11 @@ class DatabaseHelper {
       orderBy: 'name ASC',
     );
 
-    return result.map((map) => Haircut.fromMap(map)).toList();
+    return result
+        .map(
+          (map) => Haircut.fromMap(map),
+        )
+        .toList();
   }
 
   Future<int> addHaircut(
@@ -225,7 +265,11 @@ class DatabaseHelper {
       orderBy: 'created_at ASC',
     );
 
-    return result.map((map) => Customer.fromMap(map)).toList();
+    return result
+        .map(
+          (map) => Customer.fromMap(map),
+        )
+        .toList();
   }
 
   Future<int> removeCustomer(
@@ -245,26 +289,28 @@ class DatabaseHelper {
   ) async {
     final db = await database;
 
-    await db.transaction((txn) async {
-      await txn.insert(
-        'completed_cuts',
-        {
-          'customer_name': customer.name,
-          'haircut_name': customer.haircutName,
-          'price': customer.price,
-          'completed_at': DateTime.now().toIso8601String(),
-        },
-      );
+    await db.transaction(
+      (txn) async {
+        await txn.insert(
+          'completed_cuts',
+          {
+            'customer_name': customer.name,
+            'haircut_name': customer.haircutName,
+            'price': customer.price,
+            'completed_at': DateTime.now().toIso8601String(),
+          },
+        );
 
-      await txn.update(
-        'customers',
-        {
-          'status': 'completed',
-        },
-        where: 'id = ?',
-        whereArgs: [customer.id],
-      );
-    });
+        await txn.update(
+          'customers',
+          {
+            'status': 'completed',
+          },
+          where: 'id = ?',
+          whereArgs: [customer.id],
+        );
+      },
+    );
   }
 
   // ------------------------------------------------------------
@@ -279,7 +325,11 @@ class DatabaseHelper {
       orderBy: 'completed_at DESC',
     );
 
-    return result.map((map) => CompletedCut.fromMap(map)).toList();
+    return result
+        .map(
+          (map) => CompletedCut.fromMap(map),
+        )
+        .toList();
   }
 
   Future<List<CompletedCut>> getTodayCompletedCuts() async {
@@ -307,7 +357,11 @@ class DatabaseHelper {
       orderBy: 'completed_at DESC',
     );
 
-    return result.map((map) => CompletedCut.fromMap(map)).toList();
+    return result
+        .map(
+          (map) => CompletedCut.fromMap(map),
+        )
+        .toList();
   }
 
   // ------------------------------------------------------------
@@ -333,7 +387,11 @@ class DatabaseHelper {
       orderBy: 'call_out_time ASC',
     );
 
-    return result.map((map) => CallOut.fromMap(map)).toList();
+    return result
+        .map(
+          (map) => CallOut.fromMap(map),
+        )
+        .toList();
   }
 
   Future<List<CallOut>> getUpcomingCallOuts() async {
@@ -346,7 +404,11 @@ class DatabaseHelper {
       orderBy: 'call_out_time ASC',
     );
 
-    return result.map((map) => CallOut.fromMap(map)).toList();
+    return result
+        .map(
+          (map) => CallOut.fromMap(map),
+        )
+        .toList();
   }
 
   Future<int> updateCallOutStatus(
@@ -362,6 +424,35 @@ class DatabaseHelper {
       },
       where: 'id = ?',
       whereArgs: [id],
+    );
+  }
+
+  Future<void> completeCallOut(
+    CallOut callOut,
+  ) async {
+    final db = await database;
+
+    await db.transaction(
+      (txn) async {
+        await txn.insert(
+          'completed_cuts',
+          {
+            'customer_name': callOut.customerName,
+            'haircut_name': '${callOut.serviceName} (Call Out)',
+            'price': callOut.totalPrice,
+            'completed_at': DateTime.now().toIso8601String(),
+          },
+        );
+
+        await txn.update(
+          'call_outs',
+          {
+            'status': 'completed',
+          },
+          where: 'id = ?',
+          whereArgs: [callOut.id],
+        );
+      },
     );
   }
 
