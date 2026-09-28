@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../database/database_helper.dart';
 import '../models/call_out.dart';
+import '../models/haircut.dart';
 import '../services/notification_service.dart';
 
 class CallOutsScreen extends StatefulWidget {
@@ -35,15 +36,54 @@ class _CallOutsScreenState extends State<CallOutsScreen> {
 
   Future<void> _addCallOut() async {
     final nameController = TextEditingController();
-
     final addressController = TextEditingController();
+    final dialogContext = context;
 
     DateTime selectedDate = DateTime.now();
-
     TimeOfDay selectedTime = TimeOfDay.now();
 
+    List<Haircut> services = [];
+
+    try {
+      services = await _database.getHaircuts();
+    } catch (_) {
+      if (dialogContext.mounted) {
+        ScaffoldMessenger.of(dialogContext).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not load services.',
+            ),
+          ),
+        );
+      }
+
+      nameController.dispose();
+      addressController.dispose();
+      return;
+    }
+
+    if (services.isEmpty) {
+      if (dialogContext.mounted) {
+        ScaffoldMessenger.of(dialogContext).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Please add a service before creating a call out.',
+            ),
+          ),
+        );
+      }
+
+      nameController.dispose();
+      addressController.dispose();
+      return;
+    }
+
+    Haircut? selectedService = services.first;
+
+    if (!mounted || !dialogContext.mounted) return;
+
     final result = await showDialog<bool>(
-      context: context,
+      context: dialogContext,
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (
@@ -85,6 +125,39 @@ class _CallOutsScreenState extends State<CallOutsScreen> {
                     const SizedBox(
                       height: 16,
                     ),
+
+                    // SERVICE DROPDOWN
+                    DropdownButtonFormField<Haircut>(
+                      initialValue: selectedService,
+                      decoration: const InputDecoration(
+                        labelText: 'Service',
+                        prefixIcon: Icon(
+                          Icons.content_cut,
+                        ),
+                      ),
+                      items: services.map(
+                        (service) {
+                          return DropdownMenuItem<Haircut>(
+                            value: service,
+                            child: Text(
+                              '${service.name} - R${service.price.toStringAsFixed(2)}',
+                            ),
+                          );
+                        },
+                      ).toList(),
+                      onChanged: (service) {
+                        if (service == null) return;
+
+                        setDialogState(() {
+                          selectedService = service;
+                        });
+                      },
+                    ),
+
+                    const SizedBox(
+                      height: 16,
+                    ),
+
                     ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: const Icon(
@@ -113,14 +186,13 @@ class _CallOutsScreenState extends State<CallOutsScreen> {
                         );
 
                         if (date != null) {
-                          setDialogState(
-                            () {
-                              selectedDate = date;
-                            },
-                          );
+                          setDialogState(() {
+                            selectedDate = date;
+                          });
                         }
                       },
                     ),
+
                     ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: const Icon(
@@ -141,11 +213,9 @@ class _CallOutsScreenState extends State<CallOutsScreen> {
                         );
 
                         if (time != null) {
-                          setDialogState(
-                            () {
-                              selectedTime = time;
-                            },
-                          );
+                          setDialogState(() {
+                            selectedTime = time;
+                          });
                         }
                       },
                     ),
@@ -167,7 +237,9 @@ class _CallOutsScreenState extends State<CallOutsScreen> {
                 FilledButton(
                   onPressed: () {
                     if (nameController.text.trim().isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(
                         const SnackBar(
                           content: Text(
                             'Enter the customer name.',
@@ -178,10 +250,25 @@ class _CallOutsScreenState extends State<CallOutsScreen> {
                     }
 
                     if (addressController.text.trim().isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(
                         const SnackBar(
                           content: Text(
                             'Enter the address.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
+                    if (selectedService == null) {
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Select a service.',
                           ),
                         ),
                       );
@@ -236,9 +323,18 @@ class _CallOutsScreenState extends State<CallOutsScreen> {
       return;
     }
 
+    if (selectedService == null || selectedService!.id == null) {
+      nameController.dispose();
+      addressController.dispose();
+      return;
+    }
+
     final callOut = CallOut(
       customerName: nameController.text.trim(),
       address: addressController.text.trim(),
+      serviceId: selectedService!.id!,
+      serviceName: selectedService!.name,
+      servicePrice: selectedService!.price,
       callOutTime: callOutTime,
       status: 'upcoming',
       createdAt: DateTime.now(),
@@ -263,9 +359,9 @@ class _CallOutsScreenState extends State<CallOutsScreen> {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Text(
-          'Call out added. Reminder scheduled for 30 minutes before.',
+          '${callOut.serviceName} call out added. Reminder scheduled for 30 minutes before.',
         ),
       ),
     );
@@ -410,7 +506,10 @@ class _CallOutsScreenState extends State<CallOutsScreen> {
                   100,
                 ),
                 itemCount: _callOuts.length,
-                itemBuilder: (context, index) {
+                itemBuilder: (
+                  context,
+                  index,
+                ) {
                   final callOut = _callOuts[index];
 
                   return _CallOutCard(
@@ -497,9 +596,37 @@ class _CallOutCard extends StatelessWidget {
                 ),
               ],
             ),
+
             const SizedBox(
               height: 16,
             ),
+
+            // SERVICE
+            Row(
+              children: [
+                const Icon(
+                  Icons.content_cut,
+                  size: 20,
+                ),
+                const SizedBox(
+                  width: 8,
+                ),
+                Expanded(
+                  child: Text(
+                    '${callOut.serviceName} • R${callOut.servicePrice.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(
+              height: 10,
+            ),
+
+            // ADDRESS
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -517,9 +644,12 @@ class _CallOutCard extends StatelessWidget {
                 ),
               ],
             ),
+
             const SizedBox(
               height: 10,
             ),
+
+            // DATE AND TIME
             Row(
               children: [
                 const Icon(
@@ -543,6 +673,7 @@ class _CallOutCard extends StatelessWidget {
                 Text(time),
               ],
             ),
+
             if (callOut.status == 'upcoming') ...[
               const SizedBox(
                 height: 16,
