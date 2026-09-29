@@ -1,6 +1,7 @@
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
+import '../models/appointment.dart';
 import '../models/call_out.dart';
 import '../models/completed_cut.dart';
 import '../models/customer.dart';
@@ -37,7 +38,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -88,6 +89,21 @@ class DatabaseHelper {
         service_price REAL NOT NULL,
         call_out_fee REAL NOT NULL DEFAULT 0,
         call_out_time TEXT NOT NULL,
+        status TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE appointments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        customer_name TEXT NOT NULL,
+        phone TEXT,
+        service_id INTEGER NOT NULL,
+        service_name TEXT NOT NULL,
+        service_price REAL NOT NULL,
+        booking_fee REAL NOT NULL DEFAULT 0,
+        appointment_time TEXT NOT NULL,
         status TEXT NOT NULL,
         created_at TEXT NOT NULL
       )
@@ -149,6 +165,23 @@ class DatabaseHelper {
         ''');
       } catch (_) {}
     }
+
+    if (oldVersion < 5) {
+      await db.execute('''
+        CREATE TABLE appointments (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          customer_name TEXT NOT NULL,
+          phone TEXT,
+          service_id INTEGER NOT NULL,
+          service_name TEXT NOT NULL,
+          service_price REAL NOT NULL,
+          booking_fee REAL NOT NULL DEFAULT 0,
+          appointment_time TEXT NOT NULL,
+          status TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        )
+      ''');
+    }
   }
 
   Future<void> _seedHaircuts(
@@ -185,9 +218,9 @@ class DatabaseHelper {
     }
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // HAIRCUTS / SERVICES
-  // ------------------------------------------------------------
+  // ============================================================
 
   Future<List<Haircut>> getHaircuts() async {
     final db = await database;
@@ -240,9 +273,9 @@ class DatabaseHelper {
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // CUSTOMERS / QUEUE
-  // ------------------------------------------------------------
+  // ============================================================
 
   Future<int> addCustomer(
     Customer customer,
@@ -313,9 +346,9 @@ class DatabaseHelper {
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // COMPLETED CUTS
-  // ------------------------------------------------------------
+  // ============================================================
 
   Future<List<CompletedCut>> getCompletedCuts() async {
     final db = await database;
@@ -364,9 +397,9 @@ class DatabaseHelper {
         .toList();
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // CALL OUTS
-  // ------------------------------------------------------------
+  // ============================================================
 
   Future<int> addCallOut(
     CallOut callOut,
@@ -463,6 +496,110 @@ class DatabaseHelper {
 
     return await db.delete(
       'call_outs',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // ============================================================
+  // APPOINTMENTS
+  // ============================================================
+
+  Future<int> addAppointment(
+    Appointment appointment,
+  ) async {
+    final db = await database;
+
+    return await db.insert(
+      'appointments',
+      appointment.toMap(),
+    );
+  }
+
+  Future<List<Appointment>> getAppointments() async {
+    final db = await database;
+
+    final result = await db.query(
+      'appointments',
+      orderBy: 'appointment_time ASC',
+    );
+
+    return result
+        .map(
+          (map) => Appointment.fromMap(map),
+        )
+        .toList();
+  }
+
+  Future<List<Appointment>> getUpcomingAppointments() async {
+    final db = await database;
+
+    final result = await db.query(
+      'appointments',
+      where: 'status = ?',
+      whereArgs: ['booked'],
+      orderBy: 'appointment_time ASC',
+    );
+
+    return result
+        .map(
+          (map) => Appointment.fromMap(map),
+        )
+        .toList();
+  }
+
+  Future<int> updateAppointmentStatus(
+    int id,
+    String status,
+  ) async {
+    final db = await database;
+
+    return await db.update(
+      'appointments',
+      {
+        'status': status,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> completeAppointment(
+    Appointment appointment,
+  ) async {
+    final db = await database;
+
+    await db.transaction(
+      (txn) async {
+        await txn.insert(
+          'completed_cuts',
+          {
+            'customer_name': appointment.customerName,
+            'haircut_name': '${appointment.serviceName} (Appointment)',
+            'price': appointment.totalPrice,
+            'completed_at': DateTime.now().toIso8601String(),
+          },
+        );
+
+        await txn.update(
+          'appointments',
+          {
+            'status': 'completed',
+          },
+          where: 'id = ?',
+          whereArgs: [appointment.id],
+        );
+      },
+    );
+  }
+
+  Future<int> deleteAppointment(
+    int id,
+  ) async {
+    final db = await database;
+
+    return await db.delete(
+      'appointments',
       where: 'id = ?',
       whereArgs: [id],
     );

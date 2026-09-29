@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'screens/appointments_screen.dart';
 import 'screens/call_outs_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/history_screen.dart';
@@ -13,11 +14,15 @@ Future<void> main() async {
 
   await NotificationService.initialize();
 
-  runApp(const BostonsApp());
+  runApp(
+    const BostonsApp(),
+  );
 }
 
 class BostonsApp extends StatelessWidget {
-  const BostonsApp({super.key});
+  const BostonsApp({
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +36,9 @@ class BostonsApp extends StatelessWidget {
 }
 
 class MainNavigation extends StatefulWidget {
-  const MainNavigation({super.key});
+  const MainNavigation({
+    super.key,
+  });
 
   @override
   State<MainNavigation> createState() => _MainNavigationState();
@@ -43,6 +50,7 @@ class _MainNavigationState extends State<MainNavigation> {
   final List<Widget> _screens = const [
     DashboardScreen(),
     QueueScreen(),
+    AppointmentsScreen(),
     ServicesScreen(),
     CallOutsScreen(),
     HistoryScreen(),
@@ -64,28 +72,57 @@ class _MainNavigationState extends State<MainNavigation> {
         },
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard),
+            icon: Icon(
+              Icons.dashboard_outlined,
+            ),
+            selectedIcon: Icon(
+              Icons.dashboard,
+            ),
             label: 'Dashboard',
           ),
           NavigationDestination(
-            icon: Icon(Icons.people_outline),
-            selectedIcon: Icon(Icons.people),
+            icon: Icon(
+              Icons.people_outline,
+            ),
+            selectedIcon: Icon(
+              Icons.people,
+            ),
             label: 'Queue',
           ),
           NavigationDestination(
-            icon: Icon(Icons.content_cut_outlined),
-            selectedIcon: Icon(Icons.content_cut),
+            icon: Icon(
+              Icons.calendar_month_outlined,
+            ),
+            selectedIcon: Icon(
+              Icons.calendar_month,
+            ),
+            label: 'Bookings',
+          ),
+          NavigationDestination(
+            icon: Icon(
+              Icons.content_cut_outlined,
+            ),
+            selectedIcon: Icon(
+              Icons.content_cut,
+            ),
             label: 'Services',
           ),
           NavigationDestination(
-            icon: Icon(Icons.directions_car_outlined),
-            selectedIcon: Icon(Icons.directions_car),
+            icon: Icon(
+              Icons.directions_car_outlined,
+            ),
+            selectedIcon: Icon(
+              Icons.directions_car,
+            ),
             label: 'Call Outs',
           ),
           NavigationDestination(
-            icon: Icon(Icons.history_outlined),
-            selectedIcon: Icon(Icons.history),
+            icon: Icon(
+              Icons.history_outlined,
+            ),
+            selectedIcon: Icon(
+              Icons.history,
+            ),
             label: 'History',
           ),
         ],

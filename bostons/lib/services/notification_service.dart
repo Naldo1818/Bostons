@@ -17,7 +17,9 @@ class NotificationService {
       android: androidSettings,
     );
 
-    await _notifications.initialize(settings);
+    await _notifications.initialize(
+      settings,
+    );
 
     final androidImplementation =
         _notifications.resolvePlatformSpecificImplementation<
@@ -27,6 +29,10 @@ class NotificationService {
 
     await androidImplementation?.requestExactAlarmsPermission();
   }
+
+  // ============================================================
+  // CALL OUT REMINDER
+  // ============================================================
 
   static Future<void> scheduleCallOutReminder({
     required int id,
@@ -38,17 +44,22 @@ class NotificationService {
       const Duration(minutes: 30),
     );
 
-    if (reminderTime.isBefore(DateTime.now())) {
+    if (reminderTime.isBefore(
+      DateTime.now(),
+    )) {
       return;
     }
 
-    final scheduledDate = tz.TZDateTime.from(reminderTime, tz.local);
+    final scheduledTime = tz.TZDateTime.from(
+      reminderTime,
+      tz.local,
+    );
 
     await _notifications.zonedSchedule(
       id,
       'Bostons Call Out',
       '$customerName\'s call-out is in 30 minutes.\n$address',
-      scheduledDate,
+      scheduledTime,
       const NotificationDetails(
         android: AndroidNotificationDetails(
           'call_out_reminders',
@@ -60,12 +71,67 @@ class NotificationService {
           playSound: true,
         ),
       ),
-      payload: 'call_out',
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      payload: 'call_out',
     );
   }
 
-  static Future<void> cancelCallOutReminder(int id) async {
+  static Future<void> cancelCallOutReminder(
+    int id,
+  ) async {
+    await _notifications.cancel(id);
+  }
+
+  // ============================================================
+  // APPOINTMENT REMINDER
+  // ============================================================
+
+  static Future<void> scheduleAppointmentReminder({
+    required int id,
+    required String customerName,
+    required String serviceName,
+    required DateTime appointmentTime,
+  }) async {
+    final reminderTime = appointmentTime.subtract(
+      const Duration(minutes: 30),
+    );
+
+    if (reminderTime.isBefore(
+      DateTime.now(),
+    )) {
+      return;
+    }
+
+    final scheduledTime = tz.TZDateTime.from(
+      reminderTime,
+      tz.local,
+    );
+
+    await _notifications.zonedSchedule(
+      id,
+      'Bostons Appointment',
+      '$customerName\'s $serviceName appointment is in 30 minutes.',
+      scheduledTime,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'appointment_reminders',
+          'Appointment Reminders',
+          channelDescription:
+              'Notifications for upcoming Bostons appointments.',
+          importance: Importance.high,
+          priority: Priority.high,
+          enableVibration: true,
+          playSound: true,
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      payload: 'appointment',
+    );
+  }
+
+  static Future<void> cancelAppointmentReminder(
+    int id,
+  ) async {
     await _notifications.cancel(id);
   }
 }
